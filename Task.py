@@ -91,9 +91,53 @@ class TaskTracker:
 
         return free_intervals
 
+    def is_time_available(self, date: str, start_time: str, end_time: str) -> bool:
+        """Проверить доступен ли заданный промежуток времени для заданной даты"""
+        day = self._get_schedule_by_date(date)
+        if not day:
+            return False
+
+        work_start = self._time_to_minutes(day.get("start"))
+        work_end = self._time_to_minutes(day.get("end"))
+        req_start = self._time_to_minutes(start_time)
+        req_end = self._time_to_minutes(end_time)
+
+        if req_start >= req_end:
+            return False
+        if req_start < work_start or req_end > work_end:
+            return False
+
+        busy_slots = self.get_busy_slots_for_date(date)
+        for slot in busy_slots:
+            slot_start = self._time_to_minutes(slot.get("start"))
+            slot_end = self._time_to_minutes(slot.get("end"))
+
+            if not (req_end <= slot_start or req_start >= slot_end):
+                return False
+
+        return True
+
+    def find_free_slot_for_duration(self, date: str, duration_minutes: int) -> Optional[Dict]:
+        """Найти свободное время для указанной продолжительности заявки"""
+        if duration_minutes <= 0:
+            return None
+
+        free_slots = self.get_free_time(date)
+        for slot in free_slots:
+            start = self._time_to_minutes(slot.get("start"))
+            end = self._time_to_minutes(slot.get("end"))
+            if (end - start) >= duration_minutes:
+                return {
+                    "start": slot.get("start"),
+                    "end": self._minutes_to_time(start + duration_minutes)
+                }
+        return None
+
 
 if __name__ == "__main__":
     tracker = TaskTracker()
     pprint(tracker.data)
     pprint(tracker.get_busy_slots_for_date('2025-02-18'))
     pprint(tracker.get_free_time('2025-02-18'))
+    pprint(tracker.is_time_available('2025-02-18', "11:00", "12:00"))
+    pprint(tracker.find_free_slot_for_duration('2025-02-18', 60))
