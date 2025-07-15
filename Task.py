@@ -1,4 +1,5 @@
 from pprint import pprint
+from typing import List, Dict, Optional
 
 import requests
 
@@ -7,6 +8,8 @@ class TaskTracker:
     def __init__(self, url: str = "https://ofc-test-01.tspb.su/test-task/"):
         self.url = url
         self.data = self.get_tasks_data()
+        self.timeslots = self.data.get("timeslots", [])
+        self.days = self.data.get("days", [])
 
     def get_tasks_data(self):
         """Получение данных о графике из API"""
@@ -33,7 +36,26 @@ class TaskTracker:
         mins = minutes % 60
         return f"{hours:02d}:{mins:02d}"
 
+    def _get_schedule_by_date(self, date: str) -> Optional[Dict]:
+        """Получение расписания для конкретного дня"""
+        for day in self.days:
+            if day["date"] == date:
+                return day
+        return None
+
+    def _get_day_timeslots(self, day_id: int) -> List[Dict]:
+        """Получение всех заявок для конкретного дня"""
+        return [slot for slot in self.timeslots if slot["day_id"] == day_id]
+
+    def get_busy_slots_for_date(self, date: str) -> List[Dict]:
+        """Найти все занятые промежутки для указанной даты"""
+        day = self._get_schedule_by_date(date)
+        if not day: return []
+        day_id = day["id"]
+        return self._get_day_timeslots(day_id)
+
 
 if __name__ == "__main__":
     tracker = TaskTracker()
     pprint(tracker.data)
+    pprint(tracker.get_busy_slots_for_date('2025-02-18'))
