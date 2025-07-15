@@ -39,23 +39,61 @@ class TaskTracker:
     def _get_schedule_by_date(self, date: str) -> Optional[Dict]:
         """Получение расписания для конкретного дня"""
         for day in self.days:
-            if day["date"] == date:
+            if day.get("date") == date:
                 return day
         return None
 
     def _get_day_timeslots(self, day_id: int) -> List[Dict]:
         """Получение всех заявок для конкретного дня"""
-        return [slot for slot in self.timeslots if slot["day_id"] == day_id]
+        return [slot for slot in self.timeslots if slot.get("day_id") == day_id]
 
     def get_busy_slots_for_date(self, date: str) -> List[Dict]:
         """Найти все занятые промежутки для указанной даты"""
         day = self._get_schedule_by_date(date)
         if not day: return []
-        day_id = day["id"]
+        day_id = day.get("id")
         return self._get_day_timeslots(day_id)
+
+    def get_free_time(self, date: str) -> List[Dict]:
+        """Найти свободное время для заданной даты"""
+        day = self._get_schedule_by_date(date)
+        if not day:
+            return []
+
+        work_start = self._time_to_minutes(day.get("start"))
+        work_end = self._time_to_minutes(day.get("end"))
+
+        busy_slots = self.get_busy_slots_for_date(date)
+        busy_intervals = []
+        for slot in busy_slots:
+            start = self._time_to_minutes(slot.get("start"))
+            end = self._time_to_minutes(slot.get("end"))
+            busy_intervals.append((start, end))
+
+        busy_intervals.sort()
+
+        free_intervals = []
+        prev_end = work_start
+
+        for start, end in busy_intervals:
+            if start > prev_end:
+                free_intervals.append({
+                    "start": self._minutes_to_time(prev_end),
+                    "end": self._minutes_to_time(start)
+                })
+            prev_end = max(prev_end, end)
+
+        if prev_end < work_end:
+            free_intervals.append({
+                "start": self._minutes_to_time(prev_end),
+                "end": day.get("end")
+            })
+
+        return free_intervals
 
 
 if __name__ == "__main__":
     tracker = TaskTracker()
     pprint(tracker.data)
     pprint(tracker.get_busy_slots_for_date('2025-02-18'))
+    pprint(tracker.get_free_time('2025-02-18'))
